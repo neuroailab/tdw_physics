@@ -71,8 +71,6 @@ class RigidNoiseParams:
     bounciness: float = None
     collision_dir: float = None
     collision_mag: float = None
-    push_dir: float = None
-    push_mag: float = None
     coll_threshold: float = None
     # start_simulate: int = None
 
@@ -88,10 +86,7 @@ class RigidNoiseParams:
             'bounciness': self.bounciness,
             'collision_dir': self.collision_dir,
             'collision_mag': self.collision_mag,
-            'push_dir': self.push_dir,
-            'push_mag': self.push_mag,
             'coll_threshold': self.coll_threshold,
-            # 'start_simulate': self.start_simulate
         }
         with open(flpth, 'w') as ofl:
             json.dump(selfobj, ofl)
@@ -172,7 +167,6 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         # self._ongoing_collisions = []
         # self._lasttime_collisions = []
         self.set_collision_noise_generator(noise)
-        self.set_push_noise_generator(noise)
         # if self.collision_noise_generator is not None:
         #     print("example noise", self.collision_noise_generator())
         # self._registered_objects = []
@@ -182,11 +176,11 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
     def log_transform_info(self, frames_grp: h5py.Group, resp: List[bytes], frame_num: int) -> Tuple[h5py.Group, h5py.Group, dict, bool]:
         num_objects = len(Dataset.OBJECT_IDS)
         frame = frames_grp.create_group(TDWUtils.zero_padding(frame_num, 4))
-        # objs = frame.create_group("objects")
+        objs = frame.create_group("objects")
         # Transforms data.
-        # positions = np.empty(dtype=np.float32, shape=(num_objects, 3))
+        positions = np.empty(dtype=np.float32, shape=(num_objects, 3))
         # forwards = np.empty(dtype=np.float32, shape=(num_objects, 3))
-        # rotations = np.empty(dtype=np.float32, shape=(num_objects, 4))
+        rotations = np.empty(dtype=np.float32, shape=(num_objects, 4))
         # Bounds data.
         # bounds = dict()
         # for bound_type in ['front', 'back', 'left', 'right', 'top', 'bottom', 'center']:
@@ -203,12 +197,12 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
                     tr_dict.update({tr.get_id(i): {"pos": pos,
                                                    "for": tr.get_forward(i),
                                                    "rot": tr.get_rotation(i)}})
-                # for o_id, i in zip(Dataset.OBJECT_IDS, range(num_objects)):
-                #     if o_id not in tr_dict:
-                #         continue
-                #     positions[i] = tr_dict[o_id]["pos"]
-                #     forwards[i] = tr_dict[o_id]["for"]
-                #     rotations[i] = tr_dict[o_id]["rot"]
+                for o_id, i in zip(Dataset.OBJECT_IDS, range(num_objects)):
+                    if o_id not in tr_dict:
+                        continue
+                    positions[i] = tr_dict[o_id]["pos"]
+                    # forwards[i] = tr_dict[o_id]["for"]
+                    rotations[i] = tr_dict[o_id]["rot"]
             # elif r_id == "boun":
             #     bo = Bounds(r)
             #     bo_dict = dict()
@@ -227,13 +221,13 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             #             except KeyError:
             #                 print("couldn't store bound data for object %d" % o_id)
 
-        # objs.create_dataset("positions", data=positions.reshape(num_objects, 3), compression="gzip")
+        objs.create_dataset("positions", data=positions.reshape(num_objects, 3), compression="gzip")
         # objs.create_dataset("forwards", data=forwards.reshape(num_objects, 3), compression="gzip")
-        # objs.create_dataset("rotations", data=rotations.reshape(num_objects, 4), compression="gzip")
+        objs.create_dataset("rotations", data=rotations.reshape(num_objects, 4), compression="gzip")
         # for bound_type in bounds.keys():
         #     objs.create_dataset(bound_type, data=bounds[bound_type], compression="gzip")
 
-        return frame, None, tr_dict
+        return frame, objs, tr_dict
 
     def _write_frame(self, frames_grp: h5py.Group, resp: List[bytes], frame_num: int, view_num: int):
         if self._noise_params == NO_NOISE:
@@ -413,7 +407,6 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
                           static_friction: float,
                           bounciness: float):
         # print("----------------------------------------------------------------------------------------------------------------------------")
-        # print("sim_seed: ", self.sim_seed)
         # print("original o_id: ", o_id)
         # print("noisy_params: ", self._noise_params)
         # print("original positions: ", position)
@@ -422,6 +415,7 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         # print("original dynamic_frictions: ", dynamic_friction)
         # print("original static_frictions: ", static_friction)
         # print("original bouncinesses: ", bounciness)
+
         n = self._noise_params
         if rotation is not None:
             rotrad = dict([[k, deg2rad(rotation[k])]
@@ -443,6 +437,7 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         if rotation is not None:
             rotation = dict([[k, rad2deg(rotrad[k])]
                             for k in rotrad.keys()])
+        
         if (n.mass is not None) and (mass is not None):
             mass = max(0, norm.rvs(loc=mass, scale=n.mass, random_state=self.sim_seed))
             # mass = mass*lognorm.rvs(s=n.mass, random_state=self.sim_seed)
@@ -463,6 +458,8 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             bounciness = max(0, norm.rvs(loc=bounciness, scale=n.bounciness, random_state=self.sim_seed))
             # bounciness = bounciness*lognorm.rvs(s=n.bounciness, random_state=self.sim_seed)
             self.sim_seed += 1
+        
+        
         # print("perturbed positions: ", position)
         # print("perturbed rotations: ", rotation)
         # print("perturbed masses: ", mass)
@@ -488,11 +485,11 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
             center = combine_dicts(this_room_center, self.base_room_center, operator.sub)
             position = self._tracking_results.position[str(o_id)][i]
-            rotation = self._tracking_results.rotation[str(o_id)][i]
+            rot = self._tracking_results.rotation[str(o_id)][i]
             # scale = self._tracking_results.scale[str(o_id)][i]
             pos = combine_dicts(position, center)
             cmds.append(RigidbodiesDataset.add_transforms_object(self,
-                record, pos, rotation, o_id+i*self.interval, add_data, library))
+                record, pos, rot, o_id+i*self.interval, add_data, library))
         return cmds
     
     def add_ramp(self,
@@ -516,25 +513,25 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         for i, room in enumerate(self.scene_record.rooms[:self.num_sim]):
             this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
             center = combine_dicts(this_room_center, self.base_room_center, operator.sub)
-            
+
             position = self._tracking_results.position[str(o_id)][i]
-            rotation = self._tracking_results.rotation[str(o_id)][i]
-            scale = self._tracking_results.scale[str(o_id)][i]
+            rot = self._tracking_results.rotation[str(o_id)][i]
+            s = self._tracking_results.scale[str(o_id)][i]
             vel = self._tracking_results.velocity[str(o_id)][i]
             ang_vel = self._tracking_results.angular_velocity[str(o_id)][i]
-            mass = mass * np.prod(xyz_to_arr(scale))
+            
             record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
 
             pos = combine_dicts(position, center)
             cmds.extend(RigidbodiesDataset.add_ramp(self,
-                record, pos, rotation, scale, o_id+i*self.interval, material, color, mass,
+                record, pos, rot, s, o_id+i*self.interval, material, color, mass,
                 dynamic_friction, static_friction,
                 bounciness, add_data))
             cmds.extend([{"$type": "set_velocity",
-                                    "id": o_id,
+                                    "id": o_id+i*self.interval,
                                     "velocity": vel}])
             cmds.extend([{"$type": "set_angular_velocity",
-                                    "id": o_id,
+                                    "id": o_id+i*self.interval,
                                     "velocity": ang_vel}])
         return cmds
     
@@ -566,26 +563,26 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         for i, room in enumerate(self.scene_record.rooms[:self.num_sim]):
             this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
             center = combine_dicts(this_room_center, self.base_room_center, operator.sub)
-        
+
             position = self._tracking_results.position[str(o_id)][i]
-            rotation = self._tracking_results.rotation[str(o_id)][i]
-            scale = self._tracking_results.scale[str(o_id)][i]
+            rot = self._tracking_results.rotation[str(o_id)][i]
+            s = self._tracking_results.scale[str(o_id)][i]
             vel = self._tracking_results.velocity[str(o_id)][i]
             ang_vel = self._tracking_results.angular_velocity[str(o_id)][i]
-            mass = mass * np.prod(xyz_to_arr(scale))
+            
             record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
 
             pos = combine_dicts(position, center)
             cmds.extend(RigidbodiesDataset.add_primitive(self,
-                record, pos, rotation, scale, o_id+i*self.interval, material, color, exclude_color, mass,
+                record, pos, rot, s, o_id+i*self.interval, material, color, exclude_color, mass,
                 dynamic_friction, static_friction,
                 bounciness, add_data, scale_mass, make_kinematic, obj_list, apply_texture,
                 default_physics_values, density)[0])
             cmds.extend([{"$type": "set_velocity",
-                                    "id": o_id,
+                                    "id": o_id+i*self.interval,
                                     "velocity": vel}])
             cmds.extend([{"$type": "set_angular_velocity",
-                                    "id": o_id,
+                                    "id": o_id+i*self.interval,
                                     "velocity": ang_vel}])
         return cmds, None
     
@@ -611,26 +608,25 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             # this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
             this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
             center = combine_dicts(this_room_center, self.base_room_center, operator.sub)
-            
+
             position = self._tracking_results.position[str(o_id)][i]
-            rotation = self._tracking_results.rotation[str(o_id)][i]
-            scale = self._tracking_results.scale[str(o_id)][i]
+            rot = self._tracking_results.rotation[str(o_id)][i]
+            s = self._tracking_results.scale[str(o_id)][i]
             vel = self._tracking_results.velocity[str(o_id)][i]
             ang_vel = self._tracking_results.angular_velocity[str(o_id)][i]
-            mass = mass * np.prod(xyz_to_arr(scale))
             record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
 
             pos = combine_dicts(position, center)
             cmds.extend(RigidbodiesDataset.add_physics_object(self,
-                record, pos, rotation, mass,
-                scale, dynamic_friction, static_friction,
+                record, pos, rot, mass,
+                s, dynamic_friction, static_friction,
                 bounciness, o_id+i*self.interval, add_data,
                 default_physics_values, density)[0])
             cmds.extend([{"$type": "set_velocity",
-                                    "id": o_id,
+                                    "id": o_id+i*self.interval,
                                     "velocity": vel}])
             cmds.extend([{"$type": "set_angular_velocity",
-                                    "id": o_id,
+                                    "id": o_id+i*self.interval,
                                     "velocity": ang_vel}])
         return cmds, None
 
@@ -807,45 +803,6 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
                     return rotmag2vec(dict([[k, impulse_rand_dir[idx]]
                                             for idx, k in enumerate(XYZ)]), impulse_mag)
             self.collision_noise_generator = cng
-        
-    def set_push_noise_generator(self,
-                                 noise_obj: RigidNoiseParams):
-        # Only make noise if there is noise to be added
-        # if noise_obj.collision_dir is not None:
-        #     ncd = copy.copy(noise_obj.collision_dir)
-        # else:
-        #     ncd = None
-        npd = noise_obj.push_dir
-        npm = noise_obj.push_mag
-        if npd is None and npm is None:
-            def push_ng(sim_seed, impulse):
-                return arr_to_xyz(impulse)
-        else:
-            """ NOTE MAKE THIS ALL RELATIVE | ADD INPUT """
-            if npm is None:
-                def push_ng(sim_seed, impulse):
-                    impulse_rand_dir = rand_von_mises_fisher(sim_seed, impulse/np.linalg.norm(impulse),kappa=npd)[0]
-                    return rotmag2vec(dict([[k, impulse_rand_dir[idx]]
-                                            for idx, k in enumerate(XYZ)]),
-                                      np.linalg.norm(impulse))
-            elif npd is None:
-                def push_ng(sim_seed, impulse):
-                    impulse_mag = np.linalg.norm(impulse)
-                    impulse_dir = impulse/impulse_mag
-                    impulse_mag = max(0, norm.rvs(loc=impulse_mag, scale=npm, random_state=sim_seed))
-                    # impulse_mag = impulse_mag*lognorm.rvs(s=ncm, random_state=sim_seed)
-                    return rotmag2vec(dict([[k, impulse_dir[idx]] for idx, k in enumerate(XYZ)]),
-                                      impulse_mag)
-            else:
-                def push_ng(sim_seed, impulse):
-                    impulse_mag = np.linalg.norm(impulse)
-                    impulse_dir = impulse/impulse_mag
-                    impulse_mag = max(0, norm.rvs(loc=impulse_mag, scale=npm, random_state=sim_seed))
-                    # impulse_mag = impulse_mag*lognorm.rvs(s=ncm, random_state=sim_seed)
-                    impulse_rand_dir = rand_von_mises_fisher(sim_seed, impulse_dir, kappa=npd)[0]
-                    return rotmag2vec(dict([[k, impulse_rand_dir[idx]]
-                                            for idx, k in enumerate(XYZ)]), impulse_mag)
-        self.push_noise_generator = push_ng
 
     # def settle(self):
     #     """
