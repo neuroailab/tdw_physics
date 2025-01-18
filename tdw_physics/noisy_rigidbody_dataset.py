@@ -370,7 +370,11 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             for i in range(exists_up_to, num):
                 if i not in self.indexes:
                     continue
-                self._tracking_results = self.visual[str(i)]
+                try:
+                    self._tracking_results = self.visual[str(i)]
+                except KeyError:
+                    print(f"trial {str(i)} in config.txt but not in b3d tracking results!")
+                    continue
                 filepath = output_dir.joinpath(TDWUtils.zero_padding(i, 4) + ".hdf5")
                 self.stimulus_name = '_'.join([filepath.parent.name, str(Path(filepath.name).with_suffix(''))])
                 # if True: #not filepath.exists():
@@ -400,12 +404,12 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             pbar.close()
 
     def _random_placement(self,
-                          position: Dict[str, float],
-                          rotation: Dict[str, float],
-                          mass: float,
-                          dynamic_friction: float,
-                          static_friction: float,
-                          bounciness: float):
+                        #   position: Dict[str, float],
+                        #   rotation: Dict[str, float],
+                          density: float,):
+                        #   dynamic_friction: float,
+                        #   static_friction: float,
+                        #   bounciness: float):
         # print("----------------------------------------------------------------------------------------------------------------------------")
         # print("original o_id: ", o_id)
         # print("noisy_params: ", self._noise_params)
@@ -417,58 +421,59 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         # print("original bouncinesses: ", bounciness)
 
         n = self._noise_params
-        if rotation is not None:
-            rotrad = dict([[k, deg2rad(rotation[k])]
-                        for k in rotation.keys()])
-        for k in XYZ:
-            if n.position is not None and k in n.position.keys()\
-                    and n.position[k] is not None and position is not None:
-                # print("parameters: ", position[k], n.position[k])
-                position[k] = norm.rvs(position[k],
-                                       n.position[k], random_state=self.sim_seed)
-                # print( "self.sim_seed: ", self.sim_seed, "position ", k, position[k])
-                # self.sim_seed += 1
-            # this is adding vonmises noise to the Euler angles
-            if n.rotation is not None and k in n.rotation.keys()\
-                    and n.rotation[k] is not None and rotation is not None:
-                rotrad[k] = vonmises.rvs(n.rotation[k], rotrad[k], random_state=self.sim_seed)
-                # print( "self.sim_seed: ", self.sim_seed, "rotation ", k, rotrad[k])
-                # self.sim_seed += 1
-        if rotation is not None:
-            rotation = dict([[k, rad2deg(rotrad[k])]
-                            for k in rotrad.keys()])
+        # if rotation is not None:
+        #     rotrad = dict([[k, deg2rad(rotation[k])]
+        #                 for k in rotation.keys()])
+        # for k in XYZ:
+        #     if n.position is not None and k in n.position.keys()\
+        #             and n.position[k] is not None and position is not None:
+        #         # print("parameters: ", position[k], n.position[k])
+        #         position[k] = norm.rvs(position[k],
+        #                                n.position[k], random_state=self.sim_seed)
+        #         # print( "self.sim_seed: ", self.sim_seed, "position ", k, position[k])
+        #         # self.sim_seed += 1
+        #     # this is adding vonmises noise to the Euler angles
+        #     if n.rotation is not None and k in n.rotation.keys()\
+        #             and n.rotation[k] is not None and rotation is not None:
+        #         rotrad[k] = vonmises.rvs(n.rotation[k], rotrad[k], random_state=self.sim_seed)
+        #         # print( "self.sim_seed: ", self.sim_seed, "rotation ", k, rotrad[k])
+        #         # self.sim_seed += 1
+        # if rotation is not None:
+        #     rotation = dict([[k, rad2deg(rotrad[k])]
+        #                     for k in rotrad.keys()])
         
-        if (n.mass is not None) and (mass is not None):
-            mass = max(0, norm.rvs(loc=mass, scale=n.mass, random_state=self.sim_seed))
-            # mass = mass*lognorm.rvs(s=n.mass, random_state=self.sim_seed)
+        if (n.density is not None) and (density is not None):
+            # density = max(0, norm.rvs(loc=density, scale=n.density, random_state=self.sim_seed))
+            density = density*lognorm.rvs(s=n.density, random_state=self.sim_seed)
             # print( "self.sim_seed: ", self.sim_seed, "mass: ", mass)
             self.sim_seed += 1
         
-        # Clamp frictions to be > 0
-        if (n.dynamic_friction is not None) and (dynamic_friction is not None):
-            dynamic_friction = max(0, norm.rvs(loc=dynamic_friction, scale=n.dynamic_friction, random_state=self.sim_seed))
-            # dynamic_friction = dynamic_friction*lognorm.rvs(s=n.dynamic_friction, random_state=self.sim_seed)
-            self.sim_seed += 1
-        if (n.static_friction is not None) and (static_friction is not None):
-            static_friction = max(0, norm.rvs(loc=static_friction, scale=n.static_friction, random_state=self.sim_seed))
-            # static_friction = static_friction*lognorm.rvs(s=n.static_friction, random_state=self.sim_seed)
-            self.sim_seed += 1
-        # Clamp bounciness between 0 and 1
-        if (n.bounciness is not None) and (bounciness is not None):
-            bounciness = max(0, norm.rvs(loc=bounciness, scale=n.bounciness, random_state=self.sim_seed))
-            # bounciness = bounciness*lognorm.rvs(s=n.bounciness, random_state=self.sim_seed)
-            self.sim_seed += 1
+        # # Clamp frictions to be > 0
+        # if (n.dynamic_friction is not None) and (dynamic_friction is not None):
+        #     dynamic_friction = max(0, norm.rvs(loc=dynamic_friction, scale=n.dynamic_friction, random_state=self.sim_seed))
+        #     # dynamic_friction = dynamic_friction*lognorm.rvs(s=n.dynamic_friction, random_state=self.sim_seed)
+        #     self.sim_seed += 1
+        # if (n.static_friction is not None) and (static_friction is not None):
+        #     static_friction = max(0, norm.rvs(loc=static_friction, scale=n.static_friction, random_state=self.sim_seed))
+        #     # static_friction = static_friction*lognorm.rvs(s=n.static_friction, random_state=self.sim_seed)
+        #     self.sim_seed += 1
+        # # Clamp bounciness between 0 and 1
+        # if (n.bounciness is not None) and (bounciness is not None):
+        #     bounciness = max(0, norm.rvs(loc=bounciness, scale=n.bounciness, random_state=self.sim_seed))
+        #     # bounciness = bounciness*lognorm.rvs(s=n.bounciness, random_state=self.sim_seed)
+        #     self.sim_seed += 1
         
         
-        # print("perturbed positions: ", position)
-        # print("perturbed rotations: ", rotation)
-        # print("perturbed masses: ", mass)
-        # print("perturbed dynamic_frictions: ", dynamic_friction)
-        # print("perturbed static_frictions: ", static_friction)
-        # print("perturbed bouncinesses: ", bounciness)
-        # print("----------------------------------------------------------------------------------------------------------------------------")
-        # self._registered_objects.append(o_id)
-        return position, rotation, mass, dynamic_friction, static_friction, bounciness
+        # # print("perturbed positions: ", position)
+        # # print("perturbed rotations: ", rotation)
+        # # print("perturbed masses: ", mass)
+        # # print("perturbed dynamic_frictions: ", dynamic_friction)
+        # # print("perturbed static_frictions: ", static_friction)
+        # # print("perturbed bouncinesses: ", bounciness)
+        # # print("----------------------------------------------------------------------------------------------------------------------------")
+        # # self._registered_objects.append(o_id)
+        # return position, rotation, density, dynamic_friction, static_friction, bounciness
+        return density
 
     def add_transforms_object(self,
                               record: ModelRecord,
@@ -573,11 +578,12 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
 
             pos = combine_dicts(position, center)
+            d = self._random_placement(copy.deepcopy(density))
             cmds.extend(RigidbodiesDataset.add_primitive(self,
                 record, pos, rot, s, o_id+i*self.interval, material, color, exclude_color, mass,
                 dynamic_friction, static_friction,
                 bounciness, add_data, scale_mass, make_kinematic, obj_list, apply_texture,
-                default_physics_values, density)[0])
+                default_physics_values, d)[0])
             cmds.extend([{"$type": "set_velocity",
                                     "id": o_id+i*self.interval,
                                     "velocity": vel}])
@@ -617,11 +623,12 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
 
             pos = combine_dicts(position, center)
+            d = self._random_placement(copy.deepcopy(density))
             cmds.extend(RigidbodiesDataset.add_physics_object(self,
                 record, pos, rot, mass,
                 s, dynamic_friction, static_friction,
                 bounciness, o_id+i*self.interval, add_data,
-                default_physics_values, density)[0])
+                default_physics_values, d)[0])
             cmds.extend([{"$type": "set_velocity",
                                     "id": o_id+i*self.interval,
                                     "velocity": vel}])
