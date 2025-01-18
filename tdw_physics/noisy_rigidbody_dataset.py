@@ -47,7 +47,7 @@ class RigidNoiseParams:
 
     velocity_mag: float: log-normal noise around the magnitude of initial speed
 
-    mass: float: log-normal noise around the true object mass
+    density: float: log-normal noise around the true object density
 
     static_friction: float: Gaussian noise around the true object static friction
 
@@ -65,7 +65,7 @@ class RigidNoiseParams:
     rotation: Dict[str, float] = None
     velocity_dir: Dict[str, float] = None
     velocity_mag: float = None
-    mass: float = None
+    density: float = None
     static_friction: float = None
     dynamic_friction: float = None
     bounciness: float = None
@@ -80,7 +80,7 @@ class RigidNoiseParams:
             'rotation': self.rotation,
             'velocity_dir': self.velocity_dir,
             'velocity_mag': self.velocity_mag,
-            'mass': self.mass,
+            'density': self.density,
             'static_friction': self.static_friction,
             'dynamic_friction': self.dynamic_friction,
             'bounciness': self.bounciness,
@@ -230,6 +230,7 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         return frame, objs, tr_dict
 
     def _write_frame(self, frames_grp: h5py.Group, resp: List[bytes], frame_num: int, view_num: int):
+        # return RigidbodiesDataset._write_frame(self, frames_grp=frames_grp, resp=resp, frame_num=frame_num, view_num=view_num)
         if self._noise_params == NO_NOISE:
             return RigidbodiesDataset._write_frame(self, frames_grp=frames_grp, resp=resp, frame_num=frame_num, view_num=view_num)
         else:
@@ -347,6 +348,7 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
                    unload_assets_every: int = 1000000000,
                    update_kwargs: List[dict] = {},
                    do_log: bool = False) -> None:
+        # return Dataset.trial_loop(self, num, output_dir, temp_path, save_frame, unload_assets_every, update_kwargs, do_log)
         if self._noise_params == NO_NOISE:
             return Dataset.trial_loop(self, num, output_dir, temp_path, save_frame, unload_assets_every, update_kwargs, do_log)
         else:
@@ -415,7 +417,7 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         # print("noisy_params: ", self._noise_params)
         # print("original positions: ", position)
         # print("original rotations: ", rotation)
-        # print("original masses: ", mass)
+        # print("original densities: ", density)
         # print("original dynamic_frictions: ", dynamic_friction)
         # print("original static_frictions: ", static_friction)
         # print("original bouncinesses: ", bounciness)
@@ -443,10 +445,10 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         #                     for k in rotrad.keys()])
         
         if (n.density is not None) and (density is not None):
-            # density = max(0, norm.rvs(loc=density, scale=n.density, random_state=self.sim_seed))
-            density = density*lognorm.rvs(s=n.density, random_state=self.sim_seed)
-            # print( "self.sim_seed: ", self.sim_seed, "mass: ", mass)
+            noise = norm.rvs(loc=0.0, scale=n.density, random_state=self.sim_seed)
+            density = density*np.exp(noise)
             self.sim_seed += 1
+            print("ADDING NOISE TO MASS!!!!!!")
         
         # # Clamp frictions to be > 0
         # if (n.dynamic_friction is not None) and (dynamic_friction is not None):
@@ -466,7 +468,7 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
         
         # # print("perturbed positions: ", position)
         # # print("perturbed rotations: ", rotation)
-        # # print("perturbed masses: ", mass)
+        # # print("perturbed densities: ", density)
         # # print("perturbed dynamic_frictions: ", dynamic_friction)
         # # print("perturbed static_frictions: ", static_friction)
         # # print("perturbed bouncinesses: ", bounciness)
@@ -497,48 +499,95 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
                 record, pos, rot, o_id+i*self.interval, add_data, library))
         return cmds
     
-    def add_ramp(self,
-                 record: ModelRecord,
-                 position: Dict[str, float] = TDWUtils.VECTOR3_ZERO,
-                 rotation: Dict[str, float] = TDWUtils.VECTOR3_ZERO,
-                 scale: Dict[str, float] = {"x": 1., "y": 1., "z": 1},
-                 o_id: Optional[int] = None,
-                 material: Optional[str] = None,
-                 color: Optional[list] = None,
-                 mass: Optional[float] = None,
-                 dynamic_friction: Optional[float] = None,
-                 static_friction: Optional[float] = None,
-                 bounciness: Optional[float] = None,
-                 add_data: Optional[bool] = True
-                 ) -> List[dict]:
-        """
-        Overwrites method from rigidbodies_dataset to add noise to objects when added to the scene
-        """
-        cmds = []
-        for i, room in enumerate(self.scene_record.rooms[:self.num_sim]):
-            this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
-            center = combine_dicts(this_room_center, self.base_room_center, operator.sub)
+    # def add_ramp(self,
+    #              record: ModelRecord,
+    #              position: Dict[str, float] = TDWUtils.VECTOR3_ZERO,
+    #              rotation: Dict[str, float] = TDWUtils.VECTOR3_ZERO,
+    #              scale: Dict[str, float] = {"x": 1., "y": 1., "z": 1},
+    #              o_id: Optional[int] = None,
+    #              material: Optional[str] = None,
+    #              color: Optional[list] = None,
+    #              mass: Optional[float] = None,
+    #              dynamic_friction: Optional[float] = None,
+    #              static_friction: Optional[float] = None,
+    #              bounciness: Optional[float] = None,
+    #              add_data: Optional[bool] = True
+    #              ) -> List[dict]:
+    #     """
+    #     Overwrites method from rigidbodies_dataset to add noise to objects when added to the scene
+    #     """
+    #     cmds = []
+    #     for i, room in enumerate(self.scene_record.rooms[:self.num_sim]):
+    #         # this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
+    #         this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
+    #         center = combine_dicts(this_room_center, self.base_room_center, operator.sub)
 
-            position = self._tracking_results.position[str(o_id)][i]
-            rot = self._tracking_results.rotation[str(o_id)][i]
-            s = self._tracking_results.scale[str(o_id)][i]
-            vel = self._tracking_results.velocity[str(o_id)][i]
-            ang_vel = self._tracking_results.angular_velocity[str(o_id)][i]
+    #         position = self._tracking_results.position[str(o_id)][i]
+    #         rot = self._tracking_results.rotation[str(o_id)][i]
+    #         s = self._tracking_results.scale[str(o_id)][i]
+    #         vel = self._tracking_results.velocity[str(o_id)][i]
+    #         ang_vel = self._tracking_results.angular_velocity[str(o_id)][i]
+    #         record = [r for r in MODEL_LIBRARIES['models_full.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
+
+    #         pos = combine_dicts(position, center)
+
+    #         cmds.extend(RigidbodiesDataset.add_physics_object(self,
+    #             record, pos, rot, mass,
+    #             s, dynamic_friction, static_friction,
+    #             bounciness, o_id+i*self.interval, add_data,
+    #             default_physics_values=False,)[0])
+    #         cmds.extend([{"$type": "set_velocity",
+    #                                 "id": o_id+i*self.interval,
+    #                                 "velocity": vel}])
+    #         cmds.extend([{"$type": "set_angular_velocity",
+    #                                 "id": o_id+i*self.interval,
+    #                                 "velocity": ang_vel}])
             
-            record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
+    #         cmds.extend(
+    #             self.get_object_material_commands(
+    #                 record, o_id+i*self.interval, self.get_material_name(material)))
+    #         cmds.extend([
+    #             {"$type": "set_color",
+    #             "color": {"r": color[0], "g": color[1], "b": color[2], "a": 1.},
+    #             "id": o_id+i*self.interval},
+    #             {"$type": "set_object_collision_detection_mode",
+    #             "mode": "continuous_speculative",
+    #             "id": o_id+i*self.interval},
+    #             {"$type": "set_kinematic_state",
+    #             "id": o_id+i*self.interval,
+    #             "is_kinematic": True,
+    #             "use_gravity": True}])
+            
+    #     return cmds, None
+    
 
-            pos = combine_dicts(position, center)
-            cmds.extend(RigidbodiesDataset.add_ramp(self,
-                record, pos, rot, s, o_id+i*self.interval, material, color, mass,
-                dynamic_friction, static_friction,
-                bounciness, add_data))
-            cmds.extend([{"$type": "set_velocity",
-                                    "id": o_id+i*self.interval,
-                                    "velocity": vel}])
-            cmds.extend([{"$type": "set_angular_velocity",
-                                    "id": o_id+i*self.interval,
-                                    "velocity": ang_vel}])
-        return cmds
+
+
+    #     cmds = []
+    #     for i, room in enumerate(self.scene_record.rooms[:self.num_sim]):
+    #         this_room_center = {'x':room.main_region.center[0], 'y':room.main_region.center[1], 'z':room.main_region.center[2]}
+    #         center = combine_dicts(this_room_center, self.base_room_center, operator.sub)
+
+    #         position = self._tracking_results.position[str(o_id)][i]
+    #         rot = self._tracking_results.rotation[str(o_id)][i]
+    #         s = self._tracking_results.scale[str(o_id)][i]
+    #         vel = self._tracking_results.velocity[str(o_id)][i]
+    #         ang_vel = self._tracking_results.angular_velocity[str(o_id)][i]
+            
+    #         record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
+
+    #         pos = combine_dicts(position, center)
+    #         cmds.extend(RigidbodiesDataset.add_ramp(self,
+    #             record, pos, rot, s, o_id+i*self.interval, material, color, mass,
+    #             dynamic_friction, static_friction,
+    #             bounciness, add_data))
+    #         cmds.extend([{"$type": "set_velocity",
+    #                                 "id": o_id+i*self.interval,
+    #                                 "velocity": vel}])
+    #         cmds.extend([{"$type": "set_angular_velocity",
+    #                                 "id": o_id+i*self.interval,
+    #                                 "velocity": ang_vel}])
+    #     return cmds
     
     def add_primitive(self,
                       record: ModelRecord,
@@ -620,7 +669,7 @@ class NoisyRigidbodiesDataset(RigidbodiesDataset, ABC):
             s = self._tracking_results.scale[str(o_id)][i]
             vel = self._tracking_results.velocity[str(o_id)][i]
             ang_vel = self._tracking_results.angular_velocity[str(o_id)][i]
-            record = [r for r in MODEL_LIBRARIES['models_flex.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
+            record = [r for r in MODEL_LIBRARIES['models_flex.json'].records+MODEL_LIBRARIES['models_full.json'].records if self._tracking_results.model[str(o_id)][i] == r.name][0]
 
             pos = combine_dicts(position, center)
             d = self._random_placement(copy.deepcopy(density))

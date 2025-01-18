@@ -464,15 +464,21 @@ class RigidbodiesDataset(TransformsDataset, ABC):
         cmds = []
 
         # add the ramp
-        info = PHYSICS_INFO[record.name]
+        # info = PHYSICS_INFO[record.name]
+        info = {
+            "bounciness": 0,
+            "dynamic_friction": 0.01,
+            "static_friction": 0.01,
+            "mass": 500,
+        }
         cds, _ = self.add_physics_object(
                 record = record,
                 position = position,
                 rotation = rotation,
-                mass = mass or info.mass,
-                dynamic_friction = dynamic_friction or info.dynamic_friction,
-                static_friction = static_friction or info.static_friction,
-                bounciness = bounciness or info.bounciness,
+                mass = mass or info["mass"],
+                dynamic_friction = dynamic_friction or info["dynamic_friction"],
+                static_friction = static_friction or info["static_friction"],
+                bounciness = bounciness or info["bounciness"],
                 o_id = o_id, default_physics_values=False,
                 add_data = add_data, scale=scale)
         cmds.extend(cds)
