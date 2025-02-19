@@ -13,7 +13,7 @@ from tqdm import tqdm
 default_ffmpeg_args = [
     '-vcodec', 'libx264',
     '-crf', '25',
-    '-pix_fmt', 'yuv420p', #'-vf', 'format=rgba'
+    '-pix_fmt', 'yuv420p', '-vf', '"transpose=2,transpose=2"'
 ]
 
 def pngs_to_mp4(

@@ -702,7 +702,7 @@ class Dataset(Controller, ABC):
                            unload_assets_every)
 
                 #save only for cam0 "for now"
-                cam_suffix = '_cam0'
+                # cam_suffix = '_cam0'
 
                 # Save an MP4 of the stimulus
                 if self.save_movies:
