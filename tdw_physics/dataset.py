@@ -85,6 +85,7 @@ class Dataset(Controller, ABC):
                  custom_build=None,
                  ffmpeg_executable='ffmpeg',
                  path_obj='/mnt/fs3/rmvenkat/data/all_flex_meshes',
+                 path_scene='/mnt/fs0/haw027/data/tdw_scenes/scenes',
                  view_id_number=0,
                  max_frames=250,
                  check_interpenet=True,
@@ -122,7 +123,8 @@ class Dataset(Controller, ABC):
                         check_version=check_version,
                          launch_build=launch_build,
                          custom_build=custom_build,
-                         mesh_folder=path_obj)
+                         mesh_folder=path_obj,
+                         scene_folder=path_scene)
 
         # hdri_skybox = "table_mountain_1_4k"
         # interior_scene_lighting = InteriorSceneLighting(hdri_skybox=hdri_skybox, aperture=8, focus_distance=2.5, ambient_occlusion_intensity=0.125, ambient_occlusion_thickness_modifier=3.5, shadow_strength=0.1)
@@ -522,34 +524,34 @@ class Dataset(Controller, ABC):
         # print("avg time to communicate", time.time() - t)
 
         #save_imgs for viz
-        if self.save_movies:
-            for fr in range(1, frame+1):
-                imgs = []
-                for pass_mask in self.save_passes:
+        # if self.save_movies:
+        #     for fr in range(1, frame+1):
+        #         imgs = []
+        #         for pass_mask in self.save_passes:
 
-                    all_imgs = []
-                    # for cam_no in range(self.num_views):
-                    cam_no = self.view_id_number
-                    filename = os.path.join(self.png_dir, pass_mask[1:] + '_' + 'cam' + str(cam_no) + '_' + str(fr).zfill(4) + '.png')
-                    img = plt.imread(filename)
-                    all_imgs.append(img)
-                    all_imgs = np.stack(all_imgs)
-                    all_imgs = concat_img_horz(all_imgs)
-                    # all_imgs = pad_below(all_imgs)
-                    imgs.append(all_imgs[:, :, :3])
+        #             all_imgs = []
+        #             # for cam_no in range(self.num_views):
+        #             cam_no = self.view_id_number
+        #             filename = os.path.join(self.png_dir, pass_mask[1:] + '_' + 'cam' + str(cam_no) + '_' + str(fr).zfill(4) + '.png')
+        #             img = plt.imread(filename)
+        #             all_imgs.append(img)
+        #             all_imgs = np.stack(all_imgs)
+        #             all_imgs = concat_img_horz(all_imgs)
+        #             # all_imgs = pad_below(all_imgs)
+        #             imgs.append(all_imgs[:, :, :3])
 
-                # breakpoint()
+        #         # breakpoint()
 
-                imgs = (np.concatenate(imgs, 0)*255).astype('uint8')
+        #         imgs = (np.concatenate(imgs, 0)*255).astype('uint8')
 
-                # breakpoint()
+        #         # breakpoint()
 
-                # filename = os.path.join(self.png_dir, 'img_' + str(fr).zfill(4) + '.png')
+        #         # filename = os.path.join(self.png_dir, 'img_' + str(fr).zfill(4) + '.png')
 
-                im_arr = Image.fromarray(imgs)
-                shp = (im_arr.size[0] - im_arr.size[0]%2, im_arr.size[1] - im_arr.size[1]%2)
-                im_arr = im_arr.resize(shp)
-                # im_arr.save(filename)
+        #         im_arr = Image.fromarray(imgs)
+        #         shp = (im_arr.size[0] - im_arr.size[0]%2, im_arr.size[1] - im_arr.size[1]%2)
+        #         im_arr = im_arr.resize(shp)
+        #         # im_arr.save(filename)
 
 
 
@@ -591,8 +593,8 @@ class Dataset(Controller, ABC):
         # Save the trial-level metadata
         json_str = json.dumps(self.trial_metadata, indent=4)
         self.meta_file.write_text(json_str, encoding='utf-8')
-        print("TRIAL %d LABELS" % self._trial_num)
-        print(json.dumps(self.trial_metadata[-1], indent=4))
+        # print("TRIAL %d LABELS" % self._trial_num)
+        # print(json.dumps(self.trial_metadata[-1], indent=4))
 
         # # Save out the target/zone segmentation mask
         # if (self.zone_id in Dataset.OBJECT_IDS) and (self.target_id in Dataset.OBJECT_IDS):
@@ -632,7 +634,7 @@ class Dataset(Controller, ABC):
         shutil.move(temp_path, filepath)
 
         if self.save_movies:
-            return im_arr.size
+            return [self._height, self._width]
         else:
             return [2, 2]
 
@@ -715,7 +717,7 @@ class Dataset(Controller, ABC):
                             filename=mp4_filename,
                             framerate=100,
                             executable= self.ffmpeg_executable, #'/ccn2/u/rmvenkat/ffmpeg',
-                            image_stem=pass_mask[1:] + '_',
+                            image_stem=pass_mask[1:] + '_cam0_',
                             png_dir=self.png_dir,
                             size=[shp[0], shp[1]],#[self._height, self._width],#
                             overwrite=True,

@@ -145,7 +145,7 @@ class TransformsDataset(Dataset, ABC):
         frame = frames_grp.create_group(TDWUtils.zero_padding(frame_num, 4))
 
         # Create a group for images.
-        images = frame.create_group("images")
+        # images = frame.create_group("images")
 
         camera_matrices = frame.create_group("camera_matrices")
         objs = frame.create_group("objects")
@@ -192,13 +192,13 @@ class TransformsDataset(Dataset, ABC):
                 for i in range(im.get_num_passes()):
                     pass_mask = im.get_pass_mask(i) + cam_suffix
                     # Reshape the depth pass array.
-                    if pass_mask == "_depth" + cam_suffix:
-                        img_d = TDWUtils.get_shaped_depth_pass(images=im, index=i)
-                        image_data = TDWUtils.get_depth_values(img_d, width=img_d.shape[0], height=img_d.shape[1])[::-1, :]
-                        # breakpoint()
-                    else:
-                        image_data = im.get_image(i)
-                    images.create_dataset(pass_mask, data=image_data, compression="gzip")
+                    # if pass_mask == "_depth" + cam_suffix:
+                    #     img_d = TDWUtils.get_shaped_depth_pass(images=im, index=i)
+                    #     image_data = TDWUtils.get_depth_values(img_d, width=img_d.shape[0], height=img_d.shape[1])[::-1, :]
+                    #     # breakpoint()
+                    # else:
+                    #     image_data = im.get_image(i)
+                    # images.create_dataset(pass_mask, data=image_data, compression="gzip")
 
                     # Save PNGs
                     # breakpoint()

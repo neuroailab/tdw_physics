@@ -47,7 +47,7 @@ class Controller:
      'pipe': 0.334848007433621,
      'pentagon': 0.5944103105417653,
      'octahedron': 0.4999997582702834,
-     'dumbbell': 0.8701171939416522,
+    #  'dumbbell': 0.8701171939416522,
      'cylinder': 0.7653673769319456,
      'cube': 1.0,
      'cone': 0.2582547675685456,
@@ -58,7 +58,7 @@ class Controller:
     for key in FLEX_MASSES.keys():
         TRIMESH_MESHES[key] = None
 
-    def __init__(self, port: int = 1071, check_version: bool = True, launch_build: bool = True, custom_build=None, mesh_folder:str ='/mnt/fs3/rmvenkat/data/all_flex_meshes', scene_folder:str ='/ccn2/u/haw027/data/tdw_scenes/scenes'):
+    def __init__(self, port: int = 1071, check_version: bool = True, launch_build: bool = True, custom_build=None, mesh_folder:str ='/mnt/fs3/rmvenkat/data/all_flex_meshes', scene_folder:str ='/mnt/fs0/haw027/data/tdw_scenes/scenes'):
         """
         Create the network socket and bind the socket to the port.
 

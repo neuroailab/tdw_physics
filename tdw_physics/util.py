@@ -170,6 +170,7 @@ def get_parser(dataset_dir: str, get_help: bool=False):
     parser.add_argument("--ffmpeg_executable", type=none_or_str, default=None, help="ffmpeg exec")
     parser.add_argument("--seed_global", type=int, default=1024, help="Global Seed")
     parser.add_argument("--path_obj", type=none_or_str, default=None, help="path to flex obj files")
+    parser.add_argument("--local_scenes_path", type=none_or_str, default=None, help="path to local materials if they exist")
     parser.add_argument("--path_hdri", type=none_or_str, default=None, help="path to hdri skyboxes")
     parser.add_argument("--sun_angle",
                         type=str,
