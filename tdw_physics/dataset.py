@@ -588,11 +588,11 @@ class Dataset(Controller, ABC):
         # if self.save_labels:
         meta = OrderedDict()
         meta = get_labels_from(f, label_funcs=self.get_controller_label_funcs(type(self).__name__), res=meta)
-        self.trial_metadata.append(meta)
+        # self.trial_metadata.append(meta)
 
         # Save the trial-level metadata
-        json_str = json.dumps(self.trial_metadata, indent=4)
-        self.meta_file.write_text(json_str, encoding='utf-8')
+        # json_str = json.dumps(self.trial_metadata, indent=4)
+        # self.meta_file.write_text(json_str, encoding='utf-8')
         # print("TRIAL %d LABELS" % self._trial_num)
         # print(json.dumps(self.trial_metadata[-1], indent=4))
 
