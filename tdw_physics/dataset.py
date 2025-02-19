@@ -586,8 +586,8 @@ class Dataset(Controller, ABC):
 
         # Compute the trial-level metadata. Save it per trial in case of failure mid-trial loop
         # if self.save_labels:
-        meta = OrderedDict()
-        meta = get_labels_from(f, label_funcs=self.get_controller_label_funcs(type(self).__name__), res=meta)
+        # meta = OrderedDict()
+        # meta = get_labels_from(f, label_funcs=self.get_controller_label_funcs(type(self).__name__), res=meta)
         # self.trial_metadata.append(meta)
 
         # Save the trial-level metadata
@@ -708,7 +708,7 @@ class Dataset(Controller, ABC):
                 if self.save_movies:
 
                     for pass_mask in ['_img']:
-                        pass_mask = pass_mask + cam_suffix
+                        # pass_mask = pass_mask + cam_suffix
                         mp4_filename = str(filepath).split('.hdf5')[0].split('/')
                         name = mp4_filename[-1]
                         mp4_filename = '/'.join(mp4_filename[:-1]) + '_' + name + pass_mask
@@ -733,7 +733,7 @@ class Dataset(Controller, ABC):
                         png = output_dir.joinpath(TDWUtils.zero_padding(i, 4) + ".png")
                         _ = subprocess.run('mv ' + str(self.png_dir) + '/' + sv + ' ' + str(png), shell=True)
 
-                    # rm = subprocess.run('rm -rf ' + str(self.png_dir), shell=True)
+                    rm = subprocess.run('rm -rf ' + str(self.png_dir), shell=True)
 
                 # if self.save_meshes:
                 #     for o_id in Dataset.OBJECT_IDS:
